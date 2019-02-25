@@ -1,0 +1,9 @@
+The F5 appliance scheduled backup did not complete successfully. 
+
+Error message was:
+
+${ERRORMESSAGE}
+
+Regards,
+
+jaman01sys01

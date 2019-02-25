@@ -1,0 +1,14 @@
+
+This message is informational, no action required.  
+The F5 appliance scheduled backup was completed successfully. 
+
+
+Backup file: ${BACKUP_FILENAME}
+
+Backup MD5SUM: ${BACKUP_MD5}
+
+Appliance backup disk utilization is: ${USEDSPACE} %
+
+Regards,
+
+f5sshbackup
