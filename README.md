@@ -27,12 +27,11 @@ Syntax:
 Backup F5 devices using SSH.  
 F5 devices don't have an inbuilt archiving mechanism.  
 
-1. Script runs manually or from cron.  
-2. F5 configuration is saved on the appliance.  
-3. Disk space is checked to ensure there is adequate disk space to continue. 
-4. Configuration is saved to an archive with naming 
-  <hostname>_yyyy-mm-dd_HH-MM
-5. MD5 is calculated for the saved archive.  
-6. Archive is retrieved to chosen directory. 
-7. MD5 is calculated for the retrieved file.
-8. Mail message is sent to advise success or failure of these processes, md5sum and disk space free in %.  
+1.  Run manually or from cron.  
+2.  Disk space is checked to ensure there is adequate disk space to continue. 
+3.  Archive name is created in format <hostname>_yyyy-mm-dd_HH-MM
+4.  F5 configuration is saved on the appliance using F5 command `tmsh save /sys ucs /var/local/ucs/<archive_name>`
+5.  MD5 is calculated for this archive.  
+6.  The archive is retrieved via SSH to parameter "-d" or "--destpath" if specified, or to the current directory.  
+7.  MD5 is calculated for the retrieved archive.
+8.  A mail message is sent to advise success or failure of these processes, md5sum and disk space free in %.  
