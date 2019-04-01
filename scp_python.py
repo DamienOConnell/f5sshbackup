@@ -16,9 +16,10 @@ def get_file_scp(srchost, srcfile, dstfile):
 
 
 def main():
+    print("testing scp transfer from srchost to dstfile)
     srchost = "myf501"
     srcfile = "/var/local/ucs/myf5_26_9_2018_LH.ucs"
-    dstfile = "/var/log/fleet/."
+    dstfile = "/var/tmp/."
     get_file_scp(srchost, srcfile, dstfile)
 
 

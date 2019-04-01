@@ -29,21 +29,16 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "file_to_md5",
-        nargs="+",
-        help="""
-        one or more files for which to calculate MD5 sum.
-        """,
+        nargs="?",
+        help=""" one or more files for which to calculate MD5 sum. """,
     )
-
     args = parser.parse_args()
 
-    for nextfile in args.file_to_md5:
-        print(md5sum(nextfile), nextfile)
-
-    """
-    Nothing to do, I will print my own MD5sum...
-    """
-    print(md5sum("md5.py"))
+    if args.file_to_md5:
+        for nextfile in args.file_to_md5:
+            print(md5sum(nextfile), nextfile)
+    else:
+        print(f'Nothing better to do, here is my own md5 {md5sum("md5.py")}')
 
 
 if __name__ == "__main__":

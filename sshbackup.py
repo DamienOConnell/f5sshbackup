@@ -15,7 +15,6 @@ from netmiko import ConnectHandler
 from logger import Logger
 from dateops import dateTimeStamp
 import scp_python
-
 from md5 import checkmd5sum
 import email_notify
 
@@ -51,7 +50,7 @@ def get_args():
 
     parser.add_argument("-u", "--username", help="login name", required=True)
     parser.add_argument(
-        "-l", "--logfile", help="name of user specified log file", required=False
+        "-l", "--logfile", help="user specified log file", required=False
     )
 
     parser.add_argument(
@@ -59,9 +58,11 @@ def get_args():
     )
 
     # either device file, or device list are needed
-    source = parser.add_mutually_exclusive_group(required=True)
-    source.add_argument("-p", "--password", help="device login password")
-    source.add_argument("-i", "--sshid", help="ssh key to use for authentication")
+    device_source = parser.add_mutually_exclusive_group(required=True)
+    device_source.add_argument("-p", "--password", help="device login password")
+    device_source.add_argument(
+        "-i", "--sshid", help="ssh key to use for authentication"
+    )
 
     verbosity_group = parser.add_mutually_exclusive_group()
     verbosity_group.add_argument("-q", "--quiet", action="store_true")
@@ -97,10 +98,10 @@ def new_f5_backup_filename(hostname):
 def main():
 
     #
-    # 1 - SET ENVIRONMENT, GET & PARSE ARGS
+    # 1 - set environment, get & parse args
     #
 
-    # avoid absolute path to files - contacts, templates, esp. when using cron
+    # allows relative path for files, esp. when using cron
     os.chdir(os.path.dirname(sys.argv[0]))
 
     args = get_args()
@@ -166,16 +167,14 @@ def main():
         destpath = "."
 
     #
-    # 2 - GET DF ON APPLIANCE, PARSE, QUIT IF LOW
+    # 2 - get df on appliance, parse, quit if low
     #
     output = device.send_command("/bin/df /var/local/ucs/")
     logfile.info(output)
     usedspace = parse_df_output(output)
 
     if usedspace > MAX_USED_DISK:
-        errormessage = "Destination disk {}% used, exceeds {}% limit ".format(
-            usedspace, MAX_USED_DISK
-        )
+        errormessage = "Disk {}% used, exceeds {}% limit ".format(usedspace, MAX_USED_DISK)
         logfile.critical(errormessage)
         email_notify.send_error_message(
             "contacts.txt",
@@ -190,22 +189,45 @@ def main():
         )
 
     #
-    # 3 - BUILD SRC PATH
+    # 3 - build src path
     #
     full_src_path = "/var/local/ucs/" + f5_backup_filename
     logfile.info("full_src_path {}".format(full_src_path))
 
-    #
-    # 4 RUN F5 BACKUP COMMAND
+    # 4 save f5 config
     #
     try:
-        # using "device.send_command_expect" for longer running commands
+        # "device.send_command_expect" for longer running commands
         output = device.send_command_expect(
-            "tmsh save /sys ucs " + full_src_path, max_loops=1000, delay_factor=20
+            "tmsh save /sys config partitions all", max_loops=1000, delay_factor=20
         )
+        logfile.info("Finished saving.")
         logfile.info(output)
     except Exception:
         errormessage = "there was an error running backup command on host {}".format(
+            args.targethost
+        )
+        logfile.critical(errormessage)
+        email_notify.send_error_message(
+            "contacts.txt",
+            "msg_failure.txt",
+            args.targethost + " - backup unsuccessful",
+            errormessage,
+        )
+        sys.exit(errormessage)
+
+    #
+    # 5 run f5 backup command
+    #
+    try:
+        # "device.send_command_expect" for longer running commands
+        output = device.send_command_expect(
+            "tmsh save /sys ucs " + full_src_path, max_loops=1000, delay_factor=20
+        )
+        logfile.info("Finished saving UCS archive: " + full_src_path)
+        logfile.info(output)
+    except Exception:
+        errormessage = "There was an error running backup command on host {}".format(
             args.targethost
         )
         logfile.critical(errormessage)
@@ -218,7 +240,7 @@ def main():
         sys.exit(errormessage)
 
     #
-    # 5 - RUN MD5SUM ON F5, PARSE OUTPUT
+    # 6 - run md5sum on f5, parse output
     #
     output = device.send_command("/usr/bin/md5sum " + full_src_path)
     logfile.info("MD5SUM OUTPUT\n\n" + output)
@@ -231,7 +253,7 @@ def main():
             )
 
     #
-    # 6 TRANSFER BACKUP FROM F5; REMOVE FROM F5
+    # 7 transfer backup from f5; remove from f5
     #
     scp_python.get_file_scp(args.targethost, full_src_path, destpath)
 
@@ -242,7 +264,9 @@ def main():
         "checkmd5sum() filename: " + f5_backup_filename + " MD5: " + archive_md5
     )
 
-    # check the MD5 against what has been transferred
+    #
+    # 8 check md5 against saved archive
+    #
     if checkmd5sum(destpath + "/" + f5_backup_filename, archive_md5):
         logfile.info("MD5 check is True")
         md5_verified = True
