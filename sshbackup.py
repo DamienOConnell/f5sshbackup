@@ -44,25 +44,17 @@ def parse_df_output(df_output):
 
 def get_args():
     parser = argparse.ArgumentParser(description="Backup F5 using SSH")
-    parser.add_argument(
-        "-t", "--targethost", help="device to be backed up", required=True
-    )
+    parser.add_argument("-t", "--targethost", help="device to be backed up", required=True)
 
     parser.add_argument("-u", "--username", help="login name", required=True)
-    parser.add_argument(
-        "-l", "--logfile", help="user specified log file", required=False
-    )
+    parser.add_argument("-l", "--logfile", help="user specified log file", required=False)
 
-    parser.add_argument(
-        "-d", "--destpath", help="local path for backup file", required=False
-    )
+    parser.add_argument("-d", "--destpath", help="local path for backup file", required=False)
 
     # either device file, or device list are needed
     device_source = parser.add_mutually_exclusive_group(required=True)
     device_source.add_argument("-p", "--password", help="device login password")
-    device_source.add_argument(
-        "-i", "--sshid", help="ssh key to use for authentication"
-    )
+    device_source.add_argument("-i", "--sshid", help="ssh key to use for authentication")
 
     verbosity_group = parser.add_mutually_exclusive_group()
     verbosity_group.add_argument("-q", "--quiet", action="store_true")
@@ -141,10 +133,7 @@ def main():
     elif args.password:  # password auth
         try:
             device = ConnectHandler(
-                device_type="linux",
-                ip=args.targethost,
-                username=args.username,
-                password=args.password,
+                device_type="linux", ip=args.targethost, username=args.username, password=args.password
             )
         except Exception:
             errormessage = "there was an error connecting to {}".format(args.targethost)
@@ -177,16 +166,11 @@ def main():
         errormessage = "Disk {}% used, exceeds {}% limit ".format(usedspace, MAX_USED_DISK)
         logfile.critical(errormessage)
         email_notify.send_error_message(
-            "contacts.txt",
-            "msg_failure.txt",
-            args.targethost + " - BACKUP SKIPPED",
-            errormessage,
+            "contacts.txt", "msg_failure.txt", args.targethost + " - BACKUP SKIPPED", errormessage
         )
         sys.exit(errormessage)
     else:
-        logfile.info(
-            "Disk space OK - {}% used on appliance backup path".format(usedspace)
-        )
+        logfile.info("Disk space OK - {}% used on appliance backup path".format(usedspace))
 
     #
     # 3 - build src path
@@ -204,15 +188,10 @@ def main():
         logfile.info("Finished saving.")
         logfile.info(output)
     except Exception:
-        errormessage = "there was an error running backup command on host {}".format(
-            args.targethost
-        )
+        errormessage = "there was an error running backup command on host {}".format(args.targethost)
         logfile.critical(errormessage)
         email_notify.send_error_message(
-            "contacts.txt",
-            "msg_failure.txt",
-            args.targethost + " - backup unsuccessful",
-            errormessage,
+            "contacts.txt", "msg_failure.txt", args.targethost + " - backup unsuccessful", errormessage
         )
         sys.exit(errormessage)
 
@@ -227,31 +206,34 @@ def main():
         logfile.info("Finished saving UCS archive: " + full_src_path)
         logfile.info(output)
     except Exception:
-        errormessage = "There was an error running backup command on host {}".format(
-            args.targethost
-        )
+        errormessage = "There was an error running backup command on host {}".format(args.targethost)
         logfile.critical(errormessage)
         email_notify.send_error_message(
-            "contacts.txt",
-            "msg_failure.txt",
-            args.targethost + " - BACKUP UNSUCCESSFUL",
-            errormessage,
+            "contacts.txt", "msg_failure.txt", args.targethost + " - BACKUP UNSUCCESSFUL", errormessage
         )
         sys.exit(errormessage)
 
     #
     # 6 - run md5sum on f5, parse output
-    #
-    output = device.send_command("/usr/bin/md5sum " + full_src_path)
-    logfile.info("MD5SUM OUTPUT\n\n" + output)
 
-    for line in output.splitlines():
-        if line.endswith("ucs"):
-            archive_md5, new_archive = line.split()
-            logfile.info(
-                "MD5 RESULT: {}; archive name: {}".format(archive_md5, new_archive)
-            )
+    # WRAP 6 IN A TRY/CATCH
+    # ALSO IF ARCHIVE_MD5 IS NOT DEFINED
+    #     SET IT TO 'UNDEFINED'
+    try:
+        output = device.send_command_expect("/usr/bin/md5sum " + full_src_path)
+        logfile.info("MD5SUM OUTPUT\n\n" + output)
+        for line in output.splitlines():
+            if line.endswith("ucs"):
+                archive_md5, new_archive = line.split()
+                logfile.info("MD5 RESULT: {}; archive name: {}".format(archive_md5, new_archive))
 
+    except Exception:
+        errormessage = "Error creating checksum for host {}".format(args.targethost)
+        logfile.critical(errormessage)
+        email_notify.send_error_message(
+            "contacts.txt", "msg_failure.txt", args.targethost + " - BACKUP UNSUCCESSFUL", errormessage
+        )
+        sys.exit(errormessage)
     #
     # 7 transfer backup from f5; remove from f5
     #
@@ -259,11 +241,9 @@ def main():
 
     # clean up backup from the appliance
     output = device.send_command("/bin/rm -f " + full_src_path)
+    logfile.info("checkmd5sum() filename: " + f5_backup_filename + " MD5: " + archive_md5)
 
-    logfile.info(
-        "checkmd5sum() filename: " + f5_backup_filename + " MD5: " + archive_md5
-    )
-
+    #
     #
     # 8 check md5 against saved archive
     #
@@ -293,10 +273,7 @@ def main():
         errormessage = "F5 backup either not completed or could not be verified"
         logfile.info("F5 backup either not completed or not verified")
         email_notify.send_error_message(
-            "contacts.txt",
-            "msg_failure.txt",
-            args.targethost + " - BACKUP UNSUCCESSFUL",
-            errormessage,
+            "contacts.txt", "msg_failure.txt", args.targethost + " - BACKUP UNSUCCESSFUL", errormessage
         )
 
 
