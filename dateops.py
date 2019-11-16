@@ -3,7 +3,7 @@
 dateStamp() return current date in YYYY-MM format
 e.g.    2018-09-29
 
-dateStamp() return the current date and time in YYYY-MM-DD_HH-MM format
+dateTimeStamp() return the current date and time in YYYY-MM-DD_HH-MM format
 e.g.  2018-09-29_18-55
 """
 from datetime import datetime
